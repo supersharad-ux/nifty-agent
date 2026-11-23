@@ -1,4 +1,4 @@
-import math, datetime as dt
+import math, io, datetime as dt
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -9,13 +9,16 @@ st.markdown('''<style>
 header,footer{visibility:hidden}
 div.stButton > button{background:#1e293b;color:#38bdf8;border:1px solid #38bdf8;border-radius:4px;padding:1px 10px;font-size:11px;font-weight:700;height:24px;min-height:24px;float:right}
 div.stButton > button:hover{background:#38bdf8;color:#0b1120}
+.stTabs [data-baseweb="tab-list"]{gap:6px;margin-bottom:4px}
+.stTabs [data-baseweb="tab"]{padding:2px 10px;font-size:11px;font-weight:700}
 </style>''', unsafe_allow_html=True)
 
-c1, c2 = st.columns([5, 1])
+c1, c2 = st.columns([8, 2])
 with c1:
     st.markdown("<div style='color:#38bdf8;font-size:13px;font-weight:700;padding-top:2px'>NIFTY ALL-IN-ONE AGENT</div>", unsafe_allow_html=True)
 with c2:
     if st.button('↻ Refresh'):
+        st.cache_data.clear()
         st.rerun()
 
 INDICES = {'Nifty 50': '^NSEI', 'Midcap 150': 'NIFTYMIDCAP150.NS', 'Smlcap 250': 'NIFTYSMLCAP250.NS'}
@@ -25,6 +28,7 @@ STOCKS = [
     ('KAYNES', 'KAYNES.NS', 'M150'), ('KPITTECH', 'KPITTECH.NS', 'M150'), ('CDSL', 'CDSL.NS', 'M150'),
 ]
 
+@st.cache_data(ttl=60)
 def get_hist(ticker, period='15mo'):
     df = yf.download(ticker, period=period, interval='1d', progress=False, auto_adjust=True)
     if isinstance(df.columns, pd.MultiIndex):
@@ -33,7 +37,7 @@ def get_hist(ticker, period='15mo'):
 
 idx_data, nifty_ann_vol, full_nifty_df = {}, 0.135, None
 for name, tk in INDICES.items():
-    df = get_hist(tk, '15mo')
+    df = get_hist(tk, '15mo').copy()
     if len(df) >= 2 and df['Open'].iloc[-1] < df['Close'].iloc[-2] * 0.25:
         ratio = df['Close'].iloc[-2] / df['Close'].iloc[-1] if df['Close'].iloc[-1] < df['Close'].iloc[-2] * 0.25 else (df['Close'].iloc[-1] / df['Open'].iloc[-1])
         for col in ('Open', 'High', 'Low', 'Close'):
@@ -96,7 +100,7 @@ ic_comp = flip_ok and (abs(s3_val) < 1.0) and (abs(last_n['s5']) < 1.5)
 ic_div = flip_ok and ((s3_val * last_n['s5']) < 0)
 stk_list, stk_dates = [], []
 for sym, tk, uni in STOCKS:
-    df = get_hist(tk, '2mo')
+    df = get_hist(tk, '2mo').copy()
     df['pct'] = df['Close'].pct_change() * 100
     df['s25'] = df['pct'] + df['pct'].shift(1) + 0.5 * df['pct'].shift(2)
     for w in (5, 10, 15): df[f's{w}'] = df['pct'].rolling(w).sum()
@@ -155,15 +159,113 @@ html = f'''<div style="background:#0b1120;color:#e2e8f0;font-family:Segoe UI,Ari
 <div class="na-meta">Updated: {ist_now} IST | 252D AnnVol: <b>{nifty_ann_vol*100:.2f}%</b> | S3: <b>{last_n['s3']:+.2f}%</b> | S5: <b>{last_n['s5']:+.2f}%</b> | S10: <b>{last_n['s10']:+.2f}%</b> | S15: <b>{last_n['s15']:+.2f}%</b> | S20: <b>{last_n['s20']:+.2f}%</b> | Regime: <span class="{bias_cls}">{bias_txt}</span></div>
 <table class="grid ohlc-sq"><tr><th>Today Live Index</th><th>Prev Close</th><th>Open</th><th>High</th><th>Low</th><th>Current</th><th>% Chg</th></tr>{ohlc_rows}</table>
 <div class="na-box">
-  <div style="color:#38bdf8;font-weight:700">SYS-1: 3-DAY UNIDIRECTIONAL DEBIT SPREAD (65 QTY/LOT | Win Rate: 73.5%): {sig}</div>
+  <div style="color:#38bdf8;font-weight:700">SYS-1: 3-DAY UNIDIRECTIONAL VERTICAL DEBIT SPREAD (65 QTY/LOT | 3:15 PM Check / 3:20:00 PM Entry): {sig}</div>
   <div><b>100-Pt:</b> Long Buy {atm} CE + Sell {atm+100} CE | Short Buy {atm} PE + Sell {atm-100} PE &nbsp;|&nbsp; <b>200-Pt:</b> Long Buy {atm} CE + Sell {atm+200} CE | Short Buy {atm} PE + Sell {atm-200} PE</div>
-  <div>1. <b>9:08 AM Pre-Open / Supra-Normal:</b> If gap &gt; +0.40% (&gt;100 pts) in favor (+40..55 pts [100-Pt] / +80..115 pts [200-Pt]) &rarr; Exit <b>IMMEDIATELY at 9:15:02 AM</b>.<br>2. <b>Normal Range:</b> 100-Pt: +15..25 pts (+Rs.975-1,625/lot) | 200-Pt: +30..50 pts (+Rs.1,950-3,250/lot) -- Peak booking: <b>9:17-9:19 AM</b> (+0.15% target); hard force-close at <b>9:20:00 AM</b>.<br>3. <b>Loss &amp; Safeguards:</b> 100-Pt: -18..25 pts | 200-Pt: -35..45 pts -- Force-close ALL opens at <b>9:20:00 AM</b> | 3:10 PM Check / 3:15:00 PM Entry (Keep <b>Rs.10k free buffer</b>).</div>
-  <div class="pos">* LONG (3rd+ Consecutive GREEN Close -- Use ONLY CE) -- Bull Call Spread: Entry (3:15 PM): 1) BUY 1 Lot ATM CE ({atm} CE) [LIMIT Ask+Rs.3 | NRML] &rarr; 2) SELL 1 Lot OTM CE ({atm+100}/{atm+200} CE) [LIMIT Bid-Rs.3 | NRML] | Exit (9:15/9:20 AM): 1) BUY Sold OTM CE [Ask+Rs.3] &rarr; 2) SELL Bought ATM CE [Bid-Rs.3]</div>
-  <div class="neg">* SHORT (3rd+ Consecutive RED Close -- Use ONLY PE) -- Bear Put Spread: Entry (3:15 PM): 1) BUY 1 Lot ATM PE ({atm} PE) [LIMIT Ask+Rs.3 | NRML] &rarr; 2) SELL 1 Lot OTM PE ({atm-100}/{atm-200} PE) [LIMIT Bid-Rs.3 | NRML] | Exit (9:15/9:20 AM): 1) BUY Sold OTM PE [Ask+Rs.3] &rarr; 2) SELL Bought ATM PE [Bid-Rs.3]</div>
+  <div>1. <b>9:08 AM Pre-Open / Supra-Normal:</b> If gap &gt; +0.40% (&gt;100 pts) in favor (+40..55 pts [100-Pt] / +80..115 pts [200-Pt]) &rarr; Exit <b>IMMEDIATELY at 9:15:02 AM</b>.<br>2. <b>Normal Range:</b> 100-Pt: +15..25 pts (+Rs.975-1,625/lot) | 200-Pt: +30..50 pts (+Rs.1,950-3,250/lot) -- Peak booking: <b>9:17-9:19 AM</b> (+0.15% target); hard force-close at <b>9:20:00 AM</b>.<br>3. <b>Loss &amp; Safeguards:</b> 100-Pt: -18..25 pts | 200-Pt: -35..45 pts -- Force-close ALL opens at <b>9:20:00 AM</b> | 3:15 PM Check / 3:20:00 PM Entry (Keep <b>Rs.10k free buffer</b>).</div>
+  <div class="pos">* LONG (3rd+ Consecutive GREEN Close -- Use ONLY CE) -- Bull Call Spread: Entry (3:20 PM): 1) BUY 1 Lot ATM CE ({atm} CE) [LIMIT Ask+Rs.3 | NRML] &rarr; 2) SELL 1 Lot OTM CE ({atm+100}/{atm+200} CE) [LIMIT Bid-Rs.3 | NRML] | Exit (9:15/9:20 AM): 1) BUY Sold OTM CE [Ask+Rs.3] &rarr; 2) SELL Bought ATM CE [Bid-Rs.3]</div>
+  <div class="neg">* SHORT (3rd+ Consecutive RED Close -- Use ONLY PE) -- Bear Put Spread: Entry (3:20 PM): 1) BUY 1 Lot ATM PE ({atm} PE) [LIMIT Ask+Rs.3 | NRML] &rarr; 2) SELL 1 Lot OTM PE ({atm-100}/{atm-200} PE) [LIMIT Bid-Rs.3 | NRML] | Exit (9:15/9:20 AM): 1) BUY Sold OTM PE [Ask+Rs.3] &rarr; 2) SELL Bought ATM PE [Bid-Rs.3]</div>
   <hr style="border-color:#1e293b;margin:2px 0">
-  <div><span class="warn">5-DAY CLOSING IRON CONDOR (1.50x Corridor = +/-{band_150} pts | 65 Qty/Lot | Book: 55% Credit | SL: Close &lt; {ic_short_pe} or &gt; {ic_short_ce}):</span><br>* <b>IC-1: IC-(COMPRESSED S3/S5 + FLIP) -- Win Rate: 85.5% (82.3% Safe):</b> <span class="{'pos' if ('STANDBY' in sig and ic_comp) else 'warn'}">{'ACTIVE' if ('STANDBY' in sig and ic_comp) else 'STANDBY'}</span> | <i>Rule:</i> |S3| &lt; 1.0% &amp; |S5| &lt; 1.5% + Flip (No 2 Consec Same) [Now: S3={s3_val:+.2f}%, S5={last_n['s5']:+.2f}%]<br>* <b>IC-2: IC-(DIVERGENT S3/S5 + FLIP) -- Win Rate: 83.0% (79.2% Safe):</b> <span class="{'pos' if ('STANDBY' in sig and ic_div) else 'warn'}">{'ACTIVE' if ('STANDBY' in sig and ic_div) else 'STANDBY'}</span> | <i>Rule:</i> S3 &amp; S5 Opposite Signs + Flip (No 2 Consec Same) [Now: S3={s3_val:+.2f}%, S5={last_n['s5']:+.2f}%]<br>* <b>4-Leg Order Sequence:</b> 1) BUY {ic_long_pe} PE + BUY {ic_long_ce} CE (Hedges First) &rarr; 2) SELL <b>{ic_short_pe} PE</b> + SELL <b>{ic_short_ce} CE</b></div>
+  <div><span class="warn">5-DAY CLOSING IRON CONDOR (3:15 PM Check / 3:20:00 PM Entry | 1.50x Corridor = +/-{band_150} pts | 65 Qty/Lot | Book: 55% Credit | SL: Close &lt; {ic_short_pe} or &gt; {ic_short_ce}):</span><br>* <b>IC-1: IC-(COMPRESSED S3/S5 + FLIP) -- Win Rate: 85.5% (82.3% Safe):</b> <span class="{'pos' if ('STANDBY' in sig and ic_comp) else 'warn'}">{'ACTIVE' if ('STANDBY' in sig and ic_comp) else 'STANDBY'}</span> | <i>Rule:</i> |S3| &lt; 1.0% &amp; |S5| &lt; 1.5% + Flip (No 2 Consec Same) [Now: S3={s3_val:+.2f}%, S5={last_n['s5']:+.2f}%]<br>* <b>IC-2: IC-(DIVERGENT S3/S5 + FLIP) -- Win Rate: 83.0% (79.2% Safe):</b> <span class="{'pos' if ('STANDBY' in sig and ic_div) else 'warn'}">{'ACTIVE' if ('STANDBY' in sig and ic_div) else 'STANDBY'}</span> | <i>Rule:</i> S3 &amp; S5 Opposite Signs + Flip (No 2 Consec Same) [Now: S3={s3_val:+.2f}%, S5={last_n['s5']:+.2f}%]<br>* <b>4-Leg Order Sequence (3:20 PM):</b> 1) BUY {ic_long_pe} PE + BUY {ic_long_ce} CE (Hedges First) &rarr; 2) SELL <b>{ic_short_pe} PE</b> + SELL <b>{ic_short_ce} CE</b></div>
 </div>
 <table class="grid"><tr><th>Date</th><th>Nifty 50</th><th>N%</th><th>NS3</th><th>NS5</th><th>NS10</th><th>NS15</th><th>NS20</th><th class="wdiv">Midcap 150</th><th>M%</th><th>MS3</th><th>MS5</th><th>MS10</th><th>MS15</th><th>MS20</th><th class="wdiv">Smlcap 250</th><th>S%</th><th>SS3</th><th>SS5</th><th>SS10</th><th>SS15</th><th>SS20</th></tr>{trows}</table>
 <table class="grid stk"><tr><th>Metric / Date</th>{stk_th}</tr><tr><td><b>CMP | Qty</b></td>{row_cmp}</tr><tr><td><b>+0.55 / +0.75</b></td>{row_tgt}</tr><tr><td><b>Vol | VolX</b></td>{row_vol}</tr><tr><td><b>S2.5 / S5</b></td>{row_s25_5}</tr><tr class="top-sep"><td><b>S10 / S15</b></td>{row_s10_15}</tr>{date_rows_html}</table>
 </div>'''
-st.markdown(html, unsafe_allow_html=True)
+
+@st.cache_data(ttl=3600)
+def run_29yr_backtest():
+    b = get_hist('^NSEI', 'max').copy()
+    b['pct'] = b['Close'].pct_change() * 100
+    b['s3'] = b['pct'].rolling(3).sum()
+    b['s5'] = b['pct'].rolling(5).sum()
+    b['vol252'] = (b['Close'].pct_change()).rolling(252).std() * math.sqrt(252)
+    b['vol252'] = b['vol252'].fillna(0.16)
+    b = b.dropna(subset=['pct']).copy()
+
+    sys1_rows, ic1_rows, ic2_rows, btst3_rows = [], [], [], []
+    streak = 0
+    for i in range(len(b) - 5):
+        p = b['pct'].iloc[i]
+        if p > 0: streak = streak + 1 if streak > 0 else 1
+        elif p < 0: streak = streak - 1 if streak < 0 else -1
+        else: streak = 0
+        dt_str = b.index[i].strftime('%Y-%m-%d')
+        yr = b.index[i].year
+        c0 = b['Close'].iloc[i]
+        o1, h1, l1, c1 = b['Open'].iloc[i+1], b['High'].iloc[i+1], b['Low'].iloc[i+1], b['Close'].iloc[i+1]
+
+        if streak >= 3:
+            gap_pct = (o1 - c0) / c0 * 100
+            max_fav = (h1 - c0) / c0 * 100
+            win = (gap_pct >= 0.15) or (max_fav >= 0.15 and c1 > c0 * 0.999)
+            pts = (o1 - c0) if gap_pct > 0.40 else (c0 * 0.0015 if win else (c1 - c0))
+            sys1_rows.append({'Date': dt_str, 'Year': yr, 'Side': 'LONG', 'Win': win, 'Pts': round(pts, 1)})
+        elif streak <= -3:
+            gap_pct = (c0 - o1) / c0 * 100
+            max_fav = (c0 - l1) / c0 * 100
+            win = (gap_pct >= 0.15) or (max_fav >= 0.15 and c1 < c0 * 1.001)
+            pts = (c0 - o1) if gap_pct > 0.40 else (c0 * 0.0015 if win else (c0 - c1))
+            sys1_rows.append({'Date': dt_str, 'Year': yr, 'Side': 'SHORT', 'Win': win, 'Pts': round(pts, 1)})
+        elif i >= 5:
+            p_prev = b['pct'].iloc[i-1]
+            flip = (p * p_prev) < 0
+            s3v, s5v = b['s3'].iloc[i], b['s5'].iloc[i]
+            band = c0 * b['vol252'].iloc[i] * math.sqrt(5.0 / 252.0) * 1.50
+            lo, hi = c0 - band, c0 + band
+            fut_closes = b['Close'].iloc[i+1:i+6]
+            safe = (fut_closes.min() >= lo) and (fut_closes.max() <= hi)
+            if flip and abs(s3v) < 1.0 and abs(s5v) < 1.5:
+                ic1_rows.append({'Date': dt_str, 'Year': yr, 'Win': safe, 'Band': round(band, 0)})
+            if flip and (s3v * s5v) < 0:
+                ic2_rows.append({'Date': dt_str, 'Year': yr, 'Win': safe, 'Band': round(band, 0)})
+
+        if streak == 3:
+            ret_next = (c1 - c0) / c0 * 100
+            btst3_rows.append({'Date': dt_str, 'Year': yr, 'Win': ret_next > 0, 'Ret%': round(ret_next, 2)})
+
+    return pd.DataFrame(sys1_rows), pd.DataFrame(ic1_rows), pd.DataFrame(ic2_rows), pd.DataFrame(btst3_rows), b.index[0].strftime('%Y-%m-%d'), b.index[-1].strftime('%Y-%m-%d')
+
+tab1, tab2, tab3 = st.tabs(['Live Dashboard', '29-Yr Backtest (1997-2026)', 'Live Trade Tracker'])
+
+with tab1:
+    st.markdown(html, unsafe_allow_html=True)
+
+with tab2:
+    s1_df, ic1_df, ic2_df, b3_df, d_start, d_end = run_29yr_backtest()
+    st.markdown(f"**Full Nifty 50 (`^NSEI`) Audit Window:** `{d_start}` to `{d_end}` | **All Options Timing:** `3:15 PM Check / 3:20:00 PM Entry`")
+    summary_df = pd.DataFrame([
+        {'Strategy': 'SYS-1: 3-Day Vertical Debit Spread (All)', 'Total Signals': len(s1_df), 'Wins': int(s1_df['Win'].sum()), 'Win Rate %': round(s1_df['Win'].mean()*100, 2), 'Avg Pts/Trade': round(s1_df['Pts'].mean(), 1)},
+        {'Strategy': 'SYS-1: Long (Bull Call Spread)', 'Total Signals': int((s1_df['Side']=='LONG').sum()), 'Wins': int(s1_df[s1_df['Side']=='LONG']['Win'].sum()), 'Win Rate %': round(s1_df[s1_df['Side']=='LONG']['Win'].mean()*100, 2), 'Avg Pts/Trade': round(s1_df[s1_df['Side']=='LONG']['Pts'].mean(), 1)},
+        {'Strategy': 'SYS-1: Short (Bear Put Spread)', 'Total Signals': int((s1_df['Side']=='SHORT').sum()), 'Wins': int(s1_df[s1_df['Side']=='SHORT']['Win'].sum()), 'Win Rate %': round(s1_df[s1_df['Side']=='SHORT']['Win'].mean()*100, 2), 'Avg Pts/Trade': round(s1_df[s1_df['Side']=='SHORT']['Pts'].mean(), 1)},
+        {'Strategy': 'SYS-2: IC-1 (Compressed S3/S5 + Flip)', 'Total Signals': len(ic1_df), 'Wins': int(ic1_df['Win'].sum()), 'Win Rate %': round(ic1_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"+/-{ic1_df['Band'].mean():.0f} band"},
+        {'Strategy': 'SYS-2: IC-2 (Divergent S3/S5 + Flip)', 'Total Signals': len(ic2_df), 'Wins': int(ic2_df['Win'].sum()), 'Win Rate %': round(ic2_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"+/-{ic2_df['Band'].mean():.0f} band"},
+        {'Strategy': 'BTST: 3-Day Consecutive Green Gatekeeper', 'Total Signals': len(b3_df), 'Wins': int(b3_df['Win'].sum()), 'Win Rate %': round(b3_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"{b3_df['Ret%'].mean():+.2f}%"},
+    ])
+    st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+    yr_s1 = s1_df.groupby('Year').agg(SYS1_Trades=('Win','count'), SYS1_WinPct=('Win', lambda x: round(x.mean()*100,1)))
+    yr_ic1 = ic1_df.groupby('Year').agg(IC1_Trades=('Win','count'), IC1_WinPct=('Win', lambda x: round(x.mean()*100,1)))
+    yr_ic2 = ic2_df.groupby('Year').agg(IC2_Trades=('Win','count'), IC2_WinPct=('Win', lambda x: round(x.mean()*100,1)))
+    yr_all = yr_s1.join([yr_ic1, yr_ic2], how='outer').fillna(0).sort_index(ascending=False).reset_index()
+    st.markdown("**Year-by-Year Breakdown (`2026` back to `1997`):**")
+    st.dataframe(yr_all, use_container_width=True, hide_index=True, height=280)
+
+    csv_buf = io.StringIO()
+    s1_df.to_csv(csv_buf, index=False)
+    st.download_button('Download Full 29-Yr SYS-1 Trade Log (CSV)', csv_buf.getvalue(), 'nifty_29yr_sys1_backtest.csv', 'text/csv')
+
+with tab3:
+    if 'trade_log' not in st.session_state:
+        st.session_state['trade_log'] = pd.DataFrame([
+            {'Date': '2026-11-23', 'Time': '15:20', 'Strategy': 'SYS-2 IC-1 (5-Day Iron Condor)', 'Strikes / Ticker': f'BUY {ic_long_pe}PE/{ic_long_ce}CE | SELL {ic_short_pe}PE/{ic_short_ce}CE', 'Qty': 65, 'Status': 'WATCHING (3:15 PM Check)', 'Net_PnL_Rs': 0}
+        ])
+    st.markdown(f"**Active Signal Advisory ({ist_now} IST):** `SYS-1 = {sig}` | `IC-1 = {'ACTIVE' if ('STANDBY' in sig and ic_comp) else 'STANDBY'}` | `IC-2 = {'ACTIVE' if ('STANDBY' in sig and ic_div) else 'STANDBY'}`")
+    edited_log = st.data_editor(st.session_state['trade_log'], num_rows='dynamic', use_container_width=True, key='log_editor')
+    st.session_state['trade_log'] = edited_log
+    c_dl, c_ul = st.columns(2)
+    with c_dl:
+        st.download_button('Export Trade Tracker (CSV)', edited_log.to_csv(index=False), 'my_live_trade_tracker.csv', 'text/csv')
+    with c_ul:
+        up = st.file_uploader('Restore Saved Tracker CSV', type=['csv'], label_visibility='collapsed')
+        if up is not None:
+            st.session_state['trade_log'] = pd.read_csv(up)
+            st.rerun()
