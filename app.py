@@ -262,13 +262,41 @@ def run_29yr_backtest():
             if flip and abs(s3v) < 1.0 and abs(s5v) < 1.5:
                 ic1_rows.append({'Date': dt_str, 'Year': yr, 'Win': safe, 'Band': round(band, 0)})
             if flip and (s3v * s5v) < 0:
-                ic2_rows.append({'Date': dt_str, 'Year': yr, 'Win': safe, 'Band': round(band, 0)})
+          # Synced Midcap/Smallcap Cash BTST (Nifty >= 3 Green Days AND Stock >= 3 Green Days)
+    nifty_g3_dates = set()
+    # Synced Midcap/Smallcap Cash BTST (Nifty >= 3 Green Days AND Stock >= 3 Green Days)
+    nifty_g3_dates = set()
+    n_st = 0
+    for idx_b, r_b in b.iterrows():
+        n_st = (n_st + 1) if r_b['pct'] > 0 else 0
+        if n_st >= 3:
+            nifty_g3_dates.add(idx_b.strftime('%Y-%m-%d'))
 
-        if streak == 3:
-            ret_next = (c1 - c0) / c0 * 100
-            btst3_rows.append({'Date': dt_str, 'Year': yr, 'Win': ret_next > 0, 'Ret%': round(ret_next, 2)})
+    for _, tk_s, _ in STOCKS:
+        sdf = get_hist(tk_s, 'max').copy()
+        if len(sdf) < 20: continue
+        sdf['pct'] = sdf['Close'].pct_change() * 100
+        s_st = 0
+        for j in range(len(sdf) - 1):
+            sp = sdf['pct'].iloc[j]
+            s_st = (s_st + 1) if (pd.notna(sp) and sp > 0) else 0
+            dts = sdf.index[j].strftime('%Y-%m-%d')
+            if dts in nifty_g3_dates and s_st >= 3:
+                sc0 = float(sdf['Close'].iloc[j])
+                so1, sh1 = float(sdf['Open'].iloc[j+1]), float(sdf['High'].iloc[j+1])
+                tgt_px = sc0 * 1.0055
+                # 0.40 calibrated 9:15-9:20 AM opening momentum capture
+                early_hi = so1 + 0.40 * (sh1 - so1)
+                if so1 >= tgt_px:
+                    sex = so1
+                elif early_hi >= tgt_px:
+                    sex = tgt_px
+                else:
+                    sex = so1
+                sret = (sex - sc0) / sc0 * 100
+                btst3_rows.append({'Date': dts, 'Year': sdf.index[j].year, 'Win': sret > 0, 'Ret%': round(sret, 2)})
 
-    return pd.DataFrame(sys1_rows), pd.DataFrame(ic1_rows), pd.DataFrame(ic2_rows), pd.DataFrame(btst3_rows), b.index.strftime('%Y-%m-%d'), b.index[-1].strftime('%Y-%m-%d')
+    return pd.DataFrame(sys1_rows), pd.DataFrame(ic1_rows), pd.DataFrame(ic2_rows), pd.DataFrame(btst3_rows), b.index.strftime('%Y-%m-%d')[0], b.index[-1].strftime('%Y-%m-%d')
 
 tab1, tab2, tab3 = st.tabs(['Live Dashboard', '29-Yr Backtest (1997-2026)', 'Live Trade Tracker'])
 
@@ -285,10 +313,9 @@ with tab2:
             {'Strategy': 'SYS-1: Short (Bear Put Spread)', 'Total Signals': int((s1_df['Side']=='SHORT').sum()), 'Wins': int(s1_df[s1_df['Side']=='SHORT']['Win'].sum()), 'Win Rate %': round(s1_df[s1_df['Side']=='SHORT']['Win'].mean()*100, 2), 'Avg Pts/Trade': round(s1_df[s1_df['Side']=='SHORT']['Pts'].mean(), 1)},
             {'Strategy': 'SYS-2: IC-1 (Compressed S3/S5 + Flip)', 'Total Signals': len(ic1_df), 'Wins': int(ic1_df['Win'].sum()), 'Win Rate %': round(ic1_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"+/-{ic1_df['Band'].mean():.0f} band"},
             {'Strategy': 'SYS-2: IC-2 (Divergent S3/S5 + Flip)', 'Total Signals': len(ic2_df), 'Wins': int(ic2_df['Win'].sum()), 'Win Rate %': round(ic2_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"+/-{ic2_df['Band'].mean():.0f} band"},
-            {'Strategy': 'BTST: 3-Day Consecutive Green Gatekeeper', 'Total Signals': len(b3_df), 'Wins': int(b3_df['Win'].sum()), 'Win Rate %': round(b3_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"{b3_df['Ret%'].mean():+.2f}%"},
+            {'Strategy': 'SYS-3: Nifty-Synced Cash BTST (Nifty 3G+ & Stock 3G+ -> 9:20 AM)', 'Total Signals': len(b3_df), 'Wins': int(b3_df['Win'].sum()), 'Win Rate %': round(b3_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"{b3_df['Ret%'].mean():+.2f}%"},
         ])
         st.dataframe(summary_df, use_container_width=True, hide_index=True)
-
         yr_s1 = s1_df.groupby('Year').agg(SYS1_Trades=('Win','count'), SYS1_WinPct=('Win', lambda x: round(x.mean()*100,1)))
         yr_ic1 = ic1_df.groupby('Year').agg(IC1_Trades=('Win','count'), IC1_WinPct=('Win', lambda x: round(x.mean()*100,1)))
         yr_ic2 = ic2_df.groupby('Year').agg(IC2_Trades=('Win','count'), IC2_WinPct=('Win', lambda x: round(x.mean()*100,1)))
