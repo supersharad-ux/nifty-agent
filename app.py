@@ -242,3 +242,35 @@ with tab2:
             {'Strategy': 'SYS-1: Short (Bear Put Spread)', 'Total Signals': int((s1_df['Side']=='SHORT').sum()), 'Wins': int(s1_df[s1_df['Side']=='SHORT']['Win'].sum()), 'Win Rate %': round(s1_df[s1_df['Side']=='SHORT']['Win'].mean()*100, 2), 'Avg Pts/Trade': round(s1_df[s1_df['Side']=='SHORT']['Pts'].mean(), 1)},
             {'Strategy': 'SYS-2: IC-1 (Compressed S3/S5 + Flip)', 'Total Signals': len(ic1_df), 'Wins': int(ic1_df['Win'].sum()), 'Win Rate %': round(ic1_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"+/-{ic1_df['Band'].mean():.0f} band"},
             {'Strategy': 'SYS-2: IC-2 (Divergent S3/S5 + Flip)', 'Total Signals': len(ic2_df), 'Wins': int(ic2_df['Win'].sum()), 'Win Rate %': round(ic2_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"+/-{ic2_df['Band'].mean():.0f} band"},
+
+            {'Strategy': 'BTST: 3-Day Consecutive Green Gatekeeper', 'Total Signals': len(b3_df), 'Wins': int(b3_df['Win'].sum()), 'Win Rate %': round(b3_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"{b3_df['Ret%'].mean():+.2f}%"},
+        ])
+        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+        yr_s1 = s1_df.groupby('Year').agg(SYS1_Trades=('Win','count'), SYS1_WinPct=('Win', lambda x: round(x.mean()*100,1)))
+        yr_ic1 = ic1_df.groupby('Year').agg(IC1_Trades=('Win','count'), IC1_WinPct=('Win', lambda x: round(x.mean()*100,1)))
+        yr_ic2 = ic2_df.groupby('Year').agg(IC2_Trades=('Win','count'), IC2_WinPct=('Win', lambda x: round(x.mean()*100,1)))
+        yr_all = yr_s1.join([yr_ic1, yr_ic2], how='outer').fillna(0).sort_index(ascending=False).reset_index()
+        st.markdown("**Year-by-Year Breakdown (`2026` back to `1997`):**")
+        st.dataframe(yr_all, use_container_width=True, hide_index=True, height=260)
+
+        csv_buf = io.StringIO()
+        s1_df.to_csv(csv_buf, index=False)
+        st.download_button('Download Full 29-Yr SYS-1 Trade Log (CSV)', csv_buf.getvalue(), 'nifty_29yr_sys1_backtest.csv', 'text/csv')
+
+with tab3:
+    if 'trade_log' not in st.session_state:
+        st.session_state['trade_log'] = pd.DataFrame([
+            {'Date': '2026-11-23', 'Time': '15:20', 'Strategy': 'SYS-2 IC-1 (5-Day Iron Condor)', 'Strikes / Ticker': f'BUY {ic_long_pe}PE/{ic_long_ce}CE | SELL {ic_short_pe}PE/{ic_short_ce}CE', 'Qty': 65, 'Status': 'WATCHING (3:15 PM Check)', 'Net_PnL_Rs': 0}
+        ])
+    st.markdown(f"**Active Signal Advisory ({ist_now} IST):** `SYS-1 = {sig}` | `IC-1 = {'ACTIVE' if ('STANDBY' in sig and ic_comp) else 'STANDBY'}` | `IC-2 = {'ACTIVE' if ('STANDBY' in sig and ic_div) else 'STANDBY'}`")
+    edited_log = st.data_editor(st.session_state['trade_log'], num_rows='dynamic', use_container_width=True, key='log_editor')
+    st.session_state['trade_log'] = edited_log
+    c_dl, c_ul = st.columns(2)
+    with c_dl:
+        st.download_button('Export Trade Tracker (CSV)', edited_log.to_csv(index=False), 'my_live_trade_tracker.csv', 'text/csv')
+    with c_ul:
+        up = st.file_uploader('Restore Saved Tracker CSV', type=['csv'], label_visibility='collapsed')
+        if up is not None:
+            st.session_state['trade_log'] = pd.read_csv(up)
+            st.rerun()
