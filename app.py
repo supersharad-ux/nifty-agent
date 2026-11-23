@@ -211,7 +211,10 @@ with s2_col:
 
 btst_stats, btst_ledger, btst_live = run_sys3_btst(UNIVERSE)
 with s3_col:
+   with s3_col:
     if btst_stats:
+        st.markdown(f"<div class='sec-hdr'>3️⃣ SYS-3: Cash BTST (WR: {btst_stats['win_rate']}%)</div>", unsafe_allow_html=True)
+
     if btst_stats:
         st.markdown(f"<div class='sec-hdr'>3️⃣ SYS-3: Cash BTST (WR: {btst_stats['win_rate']}%)</div>", unsafe_allow_html=True)
         st.metric(f"Day 3+ Green ({btst_stats['total_trades']} Trades)", f"Median: +{btst_stats['median_ret']}% / Trade", "3:20 PM -> 9:20 AM / +0.55% Tgt")
