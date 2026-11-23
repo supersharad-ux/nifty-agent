@@ -212,3 +212,25 @@ with s2_col:
 btst_stats, btst_ledger, btst_live = run_sys3_btst(UNIVERSE)
 with s3_col:
     if btst_stats:
+    if btst_stats:
+        st.markdown(f"<div class='sec-hdr'>3️⃣ SYS-3: Cash BTST (WR: {btst_stats['win_rate']}%)</div>", unsafe_allow_html=True)
+        st.metric(f"Day 3+ Green ({btst_stats['total_trades']} Trades)", f"Median: +{btst_stats['median_ret']}% / Trade", "3:20 PM -> 9:20 AM / +0.55% Tgt")
+    else:
+        st.markdown("<div class='sec-hdr'>3️⃣ SYS-3: Cash BTST</div>", unsafe_allow_html=True)
+        st.metric("STANDBY", "No Data", "3:20 PM -> 9:20 AM")
+
+# ==========================================
+# ROW 4: COMPACT TOP-7 LIVE & RECENT BACKTEST TABLES
+# ==========================================
+t1, t2 = st.columns([1, 1.35])
+with t1:
+    st.markdown("<div class='sec-hdr'>🎯 Live 3:20 PM Top-7 BTST (Day 3+ Green)</div>", unsafe_allow_html=True)
+    if not btst_live.empty:
+        st.dataframe(btst_live, use_container_width=True, hide_index=True, height=135)
+    else:
+        st.caption("No stocks currently meet Day 3+ Green + 1.2x Vol + >₹15 Cr.")
+
+with t2:
+    st.markdown("<div class='sec-hdr'>📜 SYS-3 Backtest Ledger (3:20 PM -> 9:20 AM / Med %)</div>", unsafe_allow_html=True)
+    if not btst_ledger.empty:
+        st.dataframe(btst_ledger.tail(6).iloc[::-1].drop(columns=["Score"]), use_container_width=True, hide_index=True, height=135)
