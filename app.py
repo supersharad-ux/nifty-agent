@@ -12,11 +12,11 @@ div.stButton > button:hover{background:#38bdf8;color:#0b1120}
 .stTabs [data-baseweb="tab-list"]{gap:6px;margin-bottom:4px}
 .stTabs [data-baseweb="tab"]{padding:2px 10px;font-size:11px;font-weight:700}
 </style>''', unsafe_allow_html=True)
+
 c1, c2 = st.columns(2)
 with c1:
     st.markdown("<div style='color:#38bdf8;font-size:13px;font-weight:700;padding-top:2px'>NIFTY ALL-IN-ONE AGENT</div>", unsafe_allow_html=True)
 with c2:
-    if st.button('↻ Refresh'):
     if st.button('↻ Refresh'):
         st.cache_data.clear()
         st.rerun()
@@ -189,84 +189,3 @@ def run_29yr_backtest():
     for i in range(len(b) - 5):
         p = b['pct'].iloc[i]
         if p > 0: streak = streak + 1 if streak > 0 else 1
-        dt_str = b.index[i].strftime('%Y-%m-%d')
-        yr = b.index[i].year
-        c0 = b['Close'].iloc[i]
-        o1, h1, l1, c1 = b['Open'].iloc[i+1], b['High'].iloc[i+1], b['Low'].iloc[i+1], b['Close'].iloc[i+1]
-
-        if streak >= 3:
-            gap_pct = (o1 - c0) / c0 * 100
-            max_fav = (h1 - c0) / c0 * 100
-            win = (gap_pct >= 0.15) or (max_fav >= 0.15 and c1 > c0 * 0.999)
-            pts = (o1 - c0) if gap_pct > 0.40 else (c0 * 0.0015 if win else (c1 - c0))
-            sys1_rows.append({'Date': dt_str, 'Year': yr, 'Side': 'LONG', 'Win': win, 'Pts': round(pts, 1)})
-        elif streak <= -3:
-            gap_pct = (c0 - o1) / c0 * 100
-            max_fav = (c0 - l1) / c0 * 100
-            win = (gap_pct >= 0.15) or (max_fav >= 0.15 and c1 < c0 * 1.001)
-            pts = (c0 - o1) if gap_pct > 0.40 else (c0 * 0.0015 if win else (c0 - c1))
-            sys1_rows.append({'Date': dt_str, 'Year': yr, 'Side': 'SHORT', 'Win': win, 'Pts': round(pts, 1)})
-        elif i >= 5:
-            p_prev = b['pct'].iloc[i-1]
-            flip = (p * p_prev) < 0
-            s3v, s5v = b['s3'].iloc[i], b['s5'].iloc[i]
-            band = c0 * b['vol252'].iloc[i] * math.sqrt(5.0 / 252.0) * 1.50
-            lo, hi = c0 - band, c0 + band
-            fut_closes = b['Close'].iloc[i+1:i+6]
-            safe = (fut_closes.min() >= lo) and (fut_closes.max() <= hi)
-            if flip and abs(s3v) < 1.0 and abs(s5v) < 1.5:
-                ic1_rows.append({'Date': dt_str, 'Year': yr, 'Win': safe, 'Band': round(band, 0)})
-            if flip and (s3v * s5v) < 0:
-                ic2_rows.append({'Date': dt_str, 'Year': yr, 'Win': safe, 'Band': round(band, 0)})
-
-        if streak == 3:
-            ret_next = (c1 - c0) / c0 * 100
-            btst3_rows.append({'Date': dt_str, 'Year': yr, 'Win': ret_next > 0, 'Ret%': round(ret_next, 2)})
-
-    return pd.DataFrame(sys1_rows), pd.DataFrame(ic1_rows), pd.DataFrame(ic2_rows), pd.DataFrame(btst3_rows), b.index.strftime('%Y-%m-%d'), b.index[-1].strftime('%Y-%m-%d')
-
-tab1, tab2, tab3 = st.tabs(['Live Dashboard', '29-Yr Backtest (1997-2026)', 'Live Trade Tracker'])
-
-with tab1:
-    st.markdown(html, unsafe_allow_html=True)
-
-with tab2:
-    s1_df, ic1_df, ic2_df, b3_df, d_start, d_end = run_29yr_backtest()
-    st.markdown(f"**Full Nifty 50 (`^NSEI`) Audit Window:** `{d_start}` to `{d_end}` | **All Options Timing:** `3:15 PM Check / 3:20:00 PM Entry`")
-    summary_df = pd.DataFrame([
-        {'Strategy': 'SYS-1: 3-Day Vertical Debit Spread (All)', 'Total Signals': len(s1_df), 'Wins': int(s1_df['Win'].sum()), 'Win Rate %': round(s1_df['Win'].mean()*100, 2), 'Avg Pts/Trade': round(s1_df['Pts'].mean(), 1)},
-        {'Strategy': 'SYS-1: Long (Bull Call Spread)', 'Total Signals': int((s1_df['Side']=='LONG').sum()), 'Wins': int(s1_df[s1_df['Side']=='LONG']['Win'].sum()), 'Win Rate %': round(s1_df[s1_df['Side']=='LONG']['Win'].mean()*100, 2), 'Avg Pts/Trade': round(s1_df[s1_df['Side']=='LONG']['Pts'].mean(), 1)},
-        {'Strategy': 'SYS-1: Short (Bear Put Spread)', 'Total Signals': int((s1_df['Side']=='SHORT').sum()), 'Wins': int(s1_df[s1_df['Side']=='SHORT']['Win'].sum()), 'Win Rate %': round(s1_df[s1_df['Side']=='SHORT']['Win'].mean()*100, 2), 'Avg Pts/Trade': round(s1_df[s1_df['Side']=='SHORT']['Pts'].mean(), 1)},
-        {'Strategy': 'SYS-2: IC-1 (Compressed S3/S5 + Flip)', 'Total Signals': len(ic1_df), 'Wins': int(ic1_df['Win'].sum()), 'Win Rate %': round(ic1_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"+/-{ic1_df['Band'].mean():.0f} band"},
-        {'Strategy': 'SYS-2: IC-2 (Divergent S3/S5 + Flip)', 'Total Signals': len(ic2_df), 'Wins': int(ic2_df['Win'].sum()), 'Win Rate %': round(ic2_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"+/-{ic2_df['Band'].mean():.0f} band"},
-        {'Strategy': 'BTST: 3-Day Consecutive Green Gatekeeper', 'Total Signals': len(b3_df), 'Wins': int(b3_df['Win'].sum()), 'Win Rate %': round(b3_df['Win'].mean()*100, 2), 'Avg Pts/Trade': f"{b3_df['Ret%'].mean():+.2f}%"},
-    ])
-    st.dataframe(summary_df, use_container_width=True, hide_index=True)
-
-    yr_s1 = s1_df.groupby('Year').agg(SYS1_Trades=('Win','count'), SYS1_WinPct=('Win', lambda x: round(x.mean()*100,1)))
-    yr_ic1 = ic1_df.groupby('Year').agg(IC1_Trades=('Win','count'), IC1_WinPct=('Win', lambda x: round(x.mean()*100,1)))
-    yr_ic2 = ic2_df.groupby('Year').agg(IC2_Trades=('Win','count'), IC2_WinPct=('Win', lambda x: round(x.mean()*100,1)))
-    yr_all = yr_s1.join([yr_ic1, yr_ic2], how='outer').fillna(0).sort_index(ascending=False).reset_index()
-    st.markdown("**Year-by-Year Breakdown (`2026` back to `1997`):**")
-    st.dataframe(yr_all, use_container_width=True, hide_index=True, height=280)
-
-    csv_buf = io.StringIO()
-    s1_df.to_csv(csv_buf, index=False)
-    st.download_button('Download Full 29-Yr SYS-1 Trade Log (CSV)', csv_buf.getvalue(), 'nifty_29yr_sys1_backtest.csv', 'text/csv')
-
-with tab3:
-    if 'trade_log' not in st.session_state:
-        st.session_state['trade_log'] = pd.DataFrame([
-            {'Date': '2026-11-23', 'Time': '15:20', 'Strategy': 'SYS-2 IC-1 (5-Day Iron Condor)', 'Strikes / Ticker': f'BUY {ic_long_pe}PE/{ic_long_ce}CE | SELL {ic_short_pe}PE/{ic_short_ce}CE', 'Qty': 65, 'Status': 'WATCHING (3:15 PM Check)', 'Net_PnL_Rs': 0}
-        ])
-    st.markdown(f"**Active Signal Advisory ({ist_now} IST):** `SYS-1 = {sig}` | `IC-1 = {'ACTIVE' if ('STANDBY' in sig and ic_comp) else 'STANDBY'}` | `IC-2 = {'ACTIVE' if ('STANDBY' in sig and ic_div) else 'STANDBY'}`")
-    edited_log = st.data_editor(st.session_state['trade_log'], num_rows='dynamic', use_container_width=True, key='log_editor')
-    st.session_state['trade_log'] = edited_log
-    c_dl, c_ul = st.columns(2)
-    with c_dl:
-        st.download_button('Export Trade Tracker (CSV)', edited_log.to_csv(index=False), 'my_live_trade_tracker.csv', 'text/csv')
-    with c_ul:
-        up = st.file_uploader('Restore Saved Tracker CSV', type=['csv'], label_visibility='collapsed')
-        if up is not None:
-            st.session_state['trade_log'] = pd.read_csv(up)
-            st.rerun()
