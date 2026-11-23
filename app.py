@@ -210,10 +210,14 @@ with s2_col:
         st.metric(f"STANDBY (Flip:{'Y' if flip else 'N'})", f"S3: {s3_ret:+.2f}% | S5: {s5_ret:+.2f}%", "±750 Corridor | Tgt 55% | Max 5D")
 
 btst_stats, btst_ledger, btst_live = run_sys3_btst(UNIVERSE)
+btst_stats, btst_ledger, btst_live = run_sys3_btst(UNIVERSE)
 with s3_col:
-   with s3_col:
     if btst_stats:
         st.markdown(f"<div class='sec-hdr'>3️⃣ SYS-3: Cash BTST (WR: {btst_stats['win_rate']}%)</div>", unsafe_allow_html=True)
+        st.metric(f"Day 3+ Green ({btst_stats['total_trades']} Trades)", f"Median: +{btst_stats['median_ret']}% / Trade", "3:20 PM -> 9:20 AM / +0.55% Tgt")
+    else:
+        st.markdown("<div class='sec-hdr'>3️⃣ SYS-3: Cash BTST</div>", unsafe_allow_html=True)
+        st.metric("STANDBY", "No Data", "3:20 PM -> 9:20 AM")
 
     if btst_stats:
         st.markdown(f"<div class='sec-hdr'>3️⃣ SYS-3: Cash BTST (WR: {btst_stats['win_rate']}%)</div>", unsafe_allow_html=True)
