@@ -7,7 +7,7 @@ import pytz
 st.set_page_config(page_title="Nifty & BTST Agent", layout="wide", initial_sidebar_state="collapsed")
 
 # ==========================================
-# ULTRA-TIGHT SINGLE-VIEWPORT CSS
+# ULTRA-TIGHT SINGLE-VIEWPORT HIGH-CONTRAST CSS
 # ==========================================
 st.markdown("""
 <style>
@@ -15,14 +15,15 @@ st.markdown("""
     header[data-testid="stHeader"], footer, #MainMenu { display: none !important; }
     div[data-testid="stVerticalBlock"] > div { gap: 0.22rem !important; }
     div[data-testid="stMetric"] {
-        background: #0e131a; border: 1px solid #26303d;
+        background: #0f172a !important; border: 1px solid #334155 !important;
         padding: 4px 8px !important; border-radius: 5px;
     }
+    div[data-testid="stMetricLabel"] p, div[data-testid="stMetricValue"] div { color: #f8fafc !important; }
     div[data-testid="stMetricLabel"] { font-size: 0.66rem !important; line-height: 1.1 !important; }
     div[data-testid="stMetricValue"] { font-size: 0.92rem !important; line-height: 1.15 !important; }
     div[data-testid="stMetricDelta"] { font-size: 0.63rem !important; line-height: 1.1 !important; }
-    .hdr-bar { font-size: 0.85rem; font-weight: 700; color: #f0f4f8; margin: 0; padding: 2px 0; }
-    .sec-hdr { font-size: 0.78rem; font-weight: 700; color: #93c5fd; margin: 2px 0; }
+    .hdr-bar { font-size: 0.88rem; font-weight: 800; color: #0f172a; margin: 0; padding: 2px 0; }
+    .sec-hdr { font-size: 0.78rem; font-weight: 700; color: #1e40af; margin: 2px 0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -43,15 +44,19 @@ UNIVERSE = [
 @st.cache_data(ttl=300)
 def load_indices():
     data = {}
-    for t in ["^NSEI", "^CNXMIDCAP", "^CNXSC"]:
-        df = yf.download(t, period="10y" if t == "^NSEI" else "1mo", interval="1d", progress=False)
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
-        df = df.dropna().copy()
-        df["Pct"] = df["Close"].pct_change() * 100
-        df["Green"] = df["Pct"] > 0
-        df["Red"] = df["Pct"] < 0
-        data[t] = df
+    for t in ["^NSEI", "NIFTY_MIDCAP_100.NS", "NIFTYSMLCAP250.NS"]:
+        try:
+            df = yf.download(t, period="10y" if t == "^NSEI" else "1mo", interval="1d", progress=False)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
+            df = df.dropna().copy()
+            if not df.empty:
+                df["Pct"] = df["Close"].pct_change() * 100
+                df["Green"] = df["Pct"] > 0
+                df["Red"] = df["Pct"] < 0
+                data[t] = df
+        except Exception:
+            pass
     return data
 
 @st.cache_data(ttl=900)
@@ -137,8 +142,8 @@ def run_sys3_btst(tickers):
     trades_df = trades_df.sort_values(["Date", "Score"], ascending=[True, False])
     top7 = trades_df.groupby("Date").head(7).reset_index(drop=True)
     return {
-        "win_rate": round((top7["Ret %"] > 0).mean() * 100, 1),
-        "median_ret": round(top7["Ret %"].median(), 2),
+        "win_rate": round((top7["Ret%"] > 0).mean() * 100, 1),
+        "median_ret": round(top7["Ret%"].median(), 2),
         "total_trades": len(top7)
     }, top7, live_df
 
@@ -155,9 +160,12 @@ with c_title:
     st.markdown(f"<div class='hdr-bar'>📊 NIFTY & BTST AGENT | {now_ist.strftime('%d-%b %H:%M IST')}</div>", unsafe_allow_html=True)
     st.caption("3:15 Check • 3:20 Exec • 9:15–9:20 Exit")
 
-for col, (lbl, sym) in zip([c_n50, c_mid, c_sml], [("NIFTY 50", "^NSEI"), ("MIDCAP 100", "^CNXMIDCAP"), ("SMALLCAP 100", "^CNXSC")]):
-    d = idx[sym].iloc[-1]
-    col.metric(f"{lbl} ({d['Pct']:+.2f}%)", f"{d['Close']:,.1f}", f"O:{d['Open']:,.0f} H:{d['High']:,.0f} L:{d['Low']:,.0f}")
+for col, (lbl, sym) in zip([c_n50, c_mid, c_sml], [("NIFTY 50", "^NSEI"), ("MIDCAP 100", "NIFTY_MIDCAP_100.NS"), ("SMALLCAP 250", "NIFTYSMLCAP250.NS")]):
+    if sym in idx and not idx[sym].empty:
+        d = idx[sym].iloc[-1]
+        col.metric(f"{lbl} ({d['Pct']:+.2f}%)", f"{d['Close']:,.1f}", f"O:{d['Open']:,.0f} H:{d['High']:,.0f} L:{d['Low']:,.0f}")
+    else:
+        col.metric(lbl, "Index N/A", "NSE Feed Delayed")
 
 # ==========================================
 # ROW 2: HORIZONTAL 8-DAY NIFTY STRIP (LATEST ON LEFT)
@@ -203,41 +211,3 @@ with s2_col:
     ic2 = ((s3_ret * s5_ret) < 0) and flip and not ic1
 
     st.markdown("<div class='sec-hdr'>2️⃣ SYS-2: 5D Iron Condor (IC1:85.5% | IC2:83%)</div>", unsafe_allow_html=True)
-    if ic1 or ic2:
-        tag = "IC-1 ACTIVE" if ic1 else "IC-2 ACTIVE"
-        st.metric(f"{tag} (S3:{s3_ret:+.2f}% S5:{s5_ret:+.2f}%)", f"Sell {atm-750}PE/{atm+750}CE", f"Hedge {atm-1000}PE/{atm+1000}CE | 55% Tgt")
-    else:
-        st.metric(f"STANDBY (Flip:{'Y' if flip else 'N'})", f"S3: {s3_ret:+.2f}% | S5: {s5_ret:+.2f}%", "±750 Corridor | Tgt 55% | Max 5D")
-
-btst_stats, btst_ledger, btst_live = run_sys3_btst(UNIVERSE)
-btst_stats, btst_ledger, btst_live = run_sys3_btst(UNIVERSE)
-with s3_col:
-    if btst_stats:
-        st.markdown(f"<div class='sec-hdr'>3️⃣ SYS-3: Cash BTST (WR: {btst_stats['win_rate']}%)</div>", unsafe_allow_html=True)
-        st.metric(f"Day 3+ Green ({btst_stats['total_trades']} Trades)", f"Median: +{btst_stats['median_ret']}% / Trade", "3:20 PM -> 9:20 AM / +0.55% Tgt")
-    else:
-        st.markdown("<div class='sec-hdr'>3️⃣ SYS-3: Cash BTST</div>", unsafe_allow_html=True)
-        st.metric("STANDBY", "No Data", "3:20 PM -> 9:20 AM")
-
-    if btst_stats:
-        st.markdown(f"<div class='sec-hdr'>3️⃣ SYS-3: Cash BTST (WR: {btst_stats['win_rate']}%)</div>", unsafe_allow_html=True)
-        st.metric(f"Day 3+ Green ({btst_stats['total_trades']} Trades)", f"Median: +{btst_stats['median_ret']}% / Trade", "3:20 PM -> 9:20 AM / +0.55% Tgt")
-    else:
-        st.markdown("<div class='sec-hdr'>3️⃣ SYS-3: Cash BTST</div>", unsafe_allow_html=True)
-        st.metric("STANDBY", "No Data", "3:20 PM -> 9:20 AM")
-
-# ==========================================
-# ROW 4: COMPACT TOP-7 LIVE & RECENT BACKTEST TABLES
-# ==========================================
-t1, t2 = st.columns([1, 1.35])
-with t1:
-    st.markdown("<div class='sec-hdr'>🎯 Live 3:20 PM Top-7 BTST (Day 3+ Green)</div>", unsafe_allow_html=True)
-    if not btst_live.empty:
-        st.dataframe(btst_live, use_container_width=True, hide_index=True, height=135)
-    else:
-        st.caption("No stocks currently meet Day 3+ Green + 1.2x Vol + >₹15 Cr.")
-
-with t2:
-    st.markdown("<div class='sec-hdr'>📜 SYS-3 Backtest Ledger (3:20 PM -> 9:20 AM / Med %)</div>", unsafe_allow_html=True)
-    if not btst_ledger.empty:
-        st.dataframe(btst_ledger.tail(6).iloc[::-1].drop(columns=["Score"]), use_container_width=True, hide_index=True, height=135)
