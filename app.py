@@ -262,9 +262,7 @@ def run_29yr_backtest():
             if flip and abs(s3v) < 1.0 and abs(s5v) < 1.5:
                 ic1_rows.append({'Date': dt_str, 'Year': yr, 'Win': safe, 'Band': round(band, 0)})
             if flip and (s3v * s5v) < 0:
-          # Synced Midcap/Smallcap Cash BTST (Nifty >= 3 Green Days AND Stock >= 3 Green Days)
-    nifty_g3_dates = set()
-    # Synced Midcap/Smallcap Cash BTST (Nifty >= 3 Green Days AND Stock >= 3 Green Days)
+                     ic2_rows.append({'Date': dt_str, 'Year': yr, 'Win': safe, 'Band': round(band, 0)})
     nifty_g3_dates = set()
     n_st = 0
     for idx_b, r_b in b.iterrows():
