@@ -12,11 +12,11 @@ div.stButton > button:hover{background:#38bdf8;color:#0b1120}
 .stTabs [data-baseweb="tab-list"]{gap:6px;margin-bottom:4px}
 .stTabs [data-baseweb="tab"]{padding:2px 10px;font-size:11px;font-weight:700}
 </style>''', unsafe_allow_html=True)
-
-c1, c2 = st.columns()
+c1, c2 = st.columns(2)
 with c1:
     st.markdown("<div style='color:#38bdf8;font-size:13px;font-weight:700;padding-top:2px'>NIFTY ALL-IN-ONE AGENT</div>", unsafe_allow_html=True)
 with c2:
+    if st.button('↻ Refresh'):
     if st.button('↻ Refresh'):
         st.cache_data.clear()
         st.rerun()
