@@ -100,7 +100,9 @@ p3 = n_df['pct'].tail(3).tolist()
 s3_val = float(last_n['s3'])
 flip_ok = (p3[-1] * p3[-2]) < 0
 ic_comp = flip_ok and (abs(s3_val) < 1.0) and (abs(last_n['s5']) < 1.5)
-ic_div = flip_ok and ((s3_val * last_n['s5']) < 0)stk_list, stk_dates = [], []
+ic_div = flip_ok and ((s3_val * last_n['s5']) < 0)
+
+stk_list, stk_dates = [], []
 for sym, tk, uni in STOCKS:
     df = get_hist(tk, '2mo').copy()
     df['pct'] = df['Close'].pct_change() * 100
@@ -157,34 +159,3 @@ for i, d in enumerate(dates):
 
 ist_now = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=5, minutes=30)).strftime('%Y-%m-%d %H:%M:%S')
 html = f'''<div style="background:#0b1120;color:#e2e8f0;font-family:Segoe UI,Arial,sans-serif;padding:4px 6px;font-size:9.5px;border-radius:6px;overflow-x:auto;-webkit-overflow-scrolling:touch">
-<style>.na-meta{{color:#94a3b8;margin-bottom:3px;font-size:8.8px}}.na-box{{background:#111827;border:1px solid #1e293b;border-radius:4px;padding:4px 6px;margin-bottom:4px;line-height:1.22}}.pos{{color:#4ade80;font-weight:600}}.neg{{color:#f87171;font-weight:600}}.warn{{color:#fbbf24;font-weight:600}}.pos-cell{{color:#4ade80;background:rgba(74,222,128,0.10);font-weight:600}}.neg-cell{{color:#f87171;background:rgba(248,113,113,0.15);font-weight:600}}.tag{{color:#94a3b8;font-weight:400;font-size:8px}}table.grid{{width:100%;border-collapse:collapse;background:#111827;margin-bottom:4px;font-size:8.3px;color:#e2e8f0}}table.grid th,table.grid td{{padding:1.5px 3px;border-bottom:1px solid #1e293b;border-right:1px solid #1e293b;text-align:right;white-space:nowrap}}table.grid th{{background:#1e293b;color:#cbd5e1;text-align:center}}table.grid th:first-child,table.grid td:first-child{{text-align:left}}table.ohlc-sq{{width:auto;min-width:440px;border:1px solid #334155}}table.ohlc-sq th,table.ohlc-sq td{{padding:1.5px 7px;text-align:center}}table.ohlc-sq th:first-child,table.ohlc-sq td:first-child{{text-align:left;color:#38bdf8}}table.stk td{{text-align:center}}table.stk td:first-child{{text-align:left}}.wdiv{{border-left:1.5px solid #e2e8f0 !important}}.top-sep td{{border-bottom:1.5px solid #94a3b8 !important}}</style>
-<div class="na-meta">Updated: {ist_now} IST | 252D AnnVol: <b>{nifty_ann_vol*100:.2f}%</b> | 5D AnnVol: <b>{nifty_5d_ann*100:.2f}%</b> (5D &sigma;: <b>{nifty_5d_raw*100:.2f}%</b>) | S3: <b>{last_n['s3']:+.2f}%</b> | S5: <b>{last_n['s5']:+.2f}%</b> | S10: <b>{last_n['s10']:+.2f}%</b> | S15: <b>{last_n['s15']:+.2f}%</b> | S20: <b>{last_n['s20']:+.2f}%</b> | Regime: <span class="{bias_cls}">{bias_txt}</span></div>
-<table class="grid ohlc-sq"><tr><th>Today Live Index</th><th>Prev Close</th><th>Open</th><th>High</th><th>Low</th><th>Current</th><th>% Chg</th></tr>{ohlc_rows}</table>
-<div class="na-box">
-  <div style="color:#38bdf8;font-weight:700">SYS-1: 3-DAY UNIDIRECTIONAL VERTICAL DEBIT SPREAD (65 QTY/LOT | 3:15 PM Check / 3:20:00 PM Entry): {sig}</div>
-  <div><b>100-Pt:</b> Long Buy {atm} CE + Sell {atm+100} CE | Short Buy {atm} PE + Sell {atm-100} PE &nbsp;|&nbsp; <b>200-Pt:</b> Long Buy {atm} CE + Sell {atm+200} CE | Short Buy {atm} PE + Sell {atm-200} PE</div>
-  <div>1. <b>9:08 AM Pre-Open / Supra-Normal:</b> If gap &gt; +0.40% (&gt;100 pts) in favor (+40..55 pts [100-Pt] / +80..115 pts [200-Pt]) &rarr; Exit <b>IMMEDIATELY at 9:15:02 AM</b>.<br>2. <b>Normal Range:</b> 100-Pt: +15..25 pts (+Rs.975-1,625/lot) | 200-Pt: +30..50 pts (+Rs.1,950-3,250/lot) -- Peak booking: <b>9:17-9:19 AM</b> (+0.15% target); hard force-close at <b>9:20:00 AM</b>.<br>3. <b>Loss &amp; Safeguards:</b> 100-Pt: -18..25 pts | 200-Pt: -35..45 pts -- Force-close ALL opens at <b>9:20:00 AM</b> | 3:15 PM Check / 3:20:00 PM Entry (Keep <b>Rs.10k free buffer</b>).</div>
-  <div class="pos">* LONG (3rd+ Consecutive GREEN Close -- Use ONLY CE) -- Bull Call Spread: Entry (3:20 PM): 1) BUY 1 Lot ATM CE ({atm} CE) [LIMIT Ask+Rs.3 | NRML] &rarr; 2) SELL 1 Lot OTM CE ({atm+100}/{atm+200} CE) [LIMIT Bid-Rs.3 | NRML] | Exit (9:15/9:20 AM): 1) BUY Sold OTM CE [Ask+Rs.3] &rarr; 2) SELL Bought ATM CE [Bid-Rs.3]</div>
-  <div class="neg">* SHORT (3rd+ Consecutive RED Close -- Use ONLY PE) -- Bear Put Spread: Entry (3:20 PM): 1) BUY 1 Lot ATM PE ({atm} PE) [LIMIT Ask+Rs.3 | NRML] &rarr; 2) SELL 1 Lot OTM PE ({atm-100}/{atm-200} PE) [LIMIT Bid-Rs.3 | NRML] | Exit (9:15/9:20 AM): 1) BUY Sold OTM PE [Ask+Rs.3] &rarr; 2) SELL Bought ATM PE [Bid-Rs.3]</div>
-  <hr style="border-color:#1e293b;margin:2px 0">
-  <div><span class="warn">5-DAY CLOSING IRON CONDOR (3:15 PM Check / 3:20:00 PM Entry | 1.50x Corridor = +/-{band_150} pts | 65 Qty/Lot | Book: 55% Credit | SL: Close &lt; {ic_short_pe} or &gt; {ic_short_ce}):</span><br>* <b>IC-1: IC-(COMPRESSED S3/S5 + FLIP) -- Win Rate: 85.5% (82.3% Safe):</b> <span class="{'pos' if ('STANDBY' in sig and ic_comp) else 'warn'}">{'ACTIVE' if ('STANDBY' in sig and ic_comp) else 'STANDBY'}</span> | <i>Rule:</i> |S3| &lt; 1.0% &amp; |S5| &lt; 1.5% + Flip (No 2 Consec Same) [Now: S3={s3_val:+.2f}%, S5={last_n['s5']:+.2f}%]<br>* <b>IC-2: IC-(DIVERGENT S3/S5 + FLIP) -- Win Rate: 83.0% (79.2% Safe):</b> <span class="{'pos' if ('STANDBY' in sig and ic_div) else 'warn'}">{'ACTIVE' if ('STANDBY' in sig and ic_div) else 'STANDBY'}</span> | <i>Rule:</i> S3 &amp; S5 Opposite Signs + Flip (No 2 Consec Same) [Now: S3={s3_val:+.2f}%, S5={last_n['s5']:+.2f}%]<br>* <b>4-Leg Order Sequence (3:20 PM):</b> 1) BUY {ic_long_pe} PE + BUY {ic_long_ce} CE (Hedges First) &rarr; 2) SELL <b>{ic_short_pe} PE</b> + SELL <b>{ic_short_ce} CE</b></div>
-</div>
-<table class="grid"><tr><th>Date</th><th>Nifty 50</th><th>N%</th><th>NS3</th><th>NS5</th><th>NS10</th><th>NS15</th><th>NS20</th><th class="wdiv">Midcap 150</th><th>M%</th><th>MS3</th><th>MS5</th><th>MS10</th><th>MS15</th><th>MS20</th><th class="wdiv">Smlcap 250</th><th>S%</th><th>SS3</th><th>SS5</th><th>SS10</th><th>SS15</th><th>SS20</th></tr>{trows}</table>
-<table class="grid stk"><tr><th>Metric / Date</th>{stk_th}</tr><tr><td><b>CMP | Qty</b></td>{row_cmp}</tr><tr><td><b>+0.55 / +0.75</b></td>{row_tgt}</tr><tr><td><b>Vol | VolX</b></td>{row_vol}</tr><tr><td><b>S2.5 / S5</b></td>{row_s25_5}</tr><tr class="top-sep"><td><b>S10 / S15</b></td>{row_s10_15}</tr>{date_rows_html}</table>
-</div>'''
-
-def run_29yr_backtest():
-    b = get_hist('^NSEI', 'max').copy()
-    b['pct'] = b['Close'].pct_change() * 100
-    b['s3'] = b['pct'].rolling(3).sum()
-    b['s5'] = b['pct'].rolling(5).sum()
-    b['vol252'] = (b['Close'].pct_change()).rolling(252).std() * math.sqrt(252)
-    b['vol252'] = b['vol252'].fillna(0.16)
-    b = b.dropna(subset=['pct']).copy()
-
-    sys1_rows, ic1_rows, ic2_rows, btst3_rows = [], [], [], []
-    streak = 0
-    for i in range(len(b) - 5):
-        p = b['pct'].iloc[i]
-        if p > 0: streak = streak + 1 if streak > 0 else 1
-
