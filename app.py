@@ -210,7 +210,8 @@ with s1_col:
     s1_wr = round(((next_open_ret[s1_bull].dropna() > 0).mean() + (next_open_ret[s1_bear].dropna() < 0).mean()) * 50, 1)
 
     st.markdown(f"<div class='sec-hdr'>1️⃣ SYS-1: 3D Debit Spread (WR: {s1_wr}%)</div>", unsafe_allow_html=True)
-        if g3:
+    if g3:
+
         st.markdown(f"<div class='card-dark'><div class='lbl grn'>ACTIVE: 3G BULL</div><div class='val'>BUY {atm} CE | SELL {atm+150} CE</div><div class='sub'>3:20 PM -> 9:15/9:20 AM (+0.15%)</div></div>", unsafe_allow_html=True)
     elif r3:
         st.markdown(f"<div class='card-dark'><div class='lbl red'>ACTIVE: 3R BEAR</div><div class='val'>BUY {atm} PE | SELL {atm-150} PE</div><div class='sub'>3:20 PM -> 9:15/9:20 AM (+0.15%)</div></div>", unsafe_allow_html=True)
