@@ -102,8 +102,7 @@ flip_ok = (p3[-1] * p3[-2]) < 0
 ic_comp = flip_ok and (abs(s3_val) < 1.0) and (abs(last_n['s5']) < 1.5)
 ic_div = flip_ok and ((s3_val * last_n['s5']) < 0)
 
-stk_list, stk_dates = [], []
-for sym, tk, uni in STOCKS:
+
 stk_list, stk_dates = [], []
 for sym, tk, uni in STOCKS:
     df = get_hist(tk, '2mo').copy()
