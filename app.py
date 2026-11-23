@@ -11,7 +11,7 @@ div.stButton > button{background:#1e293b;color:#38bdf8;border:1px solid #38bdf8;
 div.stButton > button:hover{background:#38bdf8;color:#0b1120}
 </style>''', unsafe_allow_html=True)
 
-c1, c2 = st.columns([8, 2])
+c1, c2 = st.columns([5, 1])
 with c1:
     st.markdown("<div style='color:#38bdf8;font-size:13px;font-weight:700;padding-top:2px'>NIFTY ALL-IN-ONE AGENT</div>", unsafe_allow_html=True)
 with c2:
@@ -34,6 +34,11 @@ def get_hist(ticker, period='15mo'):
 idx_data, nifty_ann_vol, full_nifty_df = {}, 0.135, None
 for name, tk in INDICES.items():
     df = get_hist(tk, '15mo')
+    if len(df) >= 2 and df['Open'].iloc[-1] < df['Close'].iloc[-2] * 0.25:
+        ratio = df['Close'].iloc[-2] / df['Close'].iloc[-1] if df['Close'].iloc[-1] < df['Close'].iloc[-2] * 0.25 else (df['Close'].iloc[-1] / df['Open'].iloc[-1])
+        for col in ('Open', 'High', 'Low', 'Close'):
+            if df[col].iloc[-1] < df['Close'].iloc[-2] * 0.25:
+                df.iloc[-1, df.columns.get_loc(col)] *= ratio
     df['pct'] = df['Close'].pct_change() * 100
     for w in (3, 5, 10, 15, 20):
         df[f's{w}'] = df['pct'].rolling(w).sum()
@@ -46,8 +51,6 @@ for name, tk in INDICES.items():
 
 n_df = idx_data['Nifty 50']
 last_n = n_df.iloc[-1]
-last_m = idx_data['Midcap 150'].iloc[-1]
-last_s = idx_data['Smlcap 250'].iloc[-1]
 
 streak = 0
 for p in reversed(full_nifty_df['pct'].tolist()):
@@ -112,11 +115,14 @@ for sym, tk, uni in STOCKS:
     })
 
 def cell_cls(v): return 'neg-cell' if v < 0 else ('pos-cell' if v > 0 else '')
-def fmt_ohlc(lbl, r):
-    c_cls = 'pos' if r['pct'] > 0 else ('neg' if r['pct'] < 0 else '')
-    return f"<span><b style='color:#38bdf8'>{lbl}:</b> O:<b>{r['Open']:,.1f}</b> | H:<span class='pos'>{r['High']:,.1f}</span> | L:<span class='neg'>{r['Low']:,.1f}</span> | C:<b class='{c_cls}'>{r['Close']:,.1f} ({r['pct']:+.2f}%)</b></span>"
 
-ohlc_bar = f"{fmt_ohlc('NIFTY 50', last_n)} &nbsp;&#9646;&nbsp; {fmt_ohlc('MIDCAP 150', last_m)} &nbsp;&#9646;&nbsp; {fmt_ohlc('SMLCAP 250', last_s)}"
+ohlc_rows = ''
+for iname in ('Nifty 50', 'Midcap 150', 'Smlcap 250'):
+    idf = idx_data[iname]
+    prev_c = idf.iloc[-2]['Close']
+    cur = idf.iloc[-1]
+    c_cls = 'pos' if cur['pct'] > 0 else ('neg' if cur['pct'] < 0 else '')
+    ohlc_rows += f"<tr><td><b>{iname}</b></td><td>{prev_c:,.1f}</td><td>{cur['Open']:,.1f}</td><td class='pos'>{cur['High']:,.1f}</td><td class='neg'>{cur['Low']:,.1f}</td><td class='{c_cls}'>{cur['Close']:,.1f}</td><td class='{cell_cls(cur['pct'])}'>{cur['pct']:+.2f}%</td></tr>"
 
 stk_th = ''.join([f'<th class="wdiv">{s["sym"]} <span class="tag">({s["uni"]})</span></th>' for s in stk_list])
 row_cmp = ''.join([f'<td class="wdiv"><b>{s["cmp"]:,.1f}</b> | Q:{s["qty"]}</td>' for s in stk_list])
@@ -145,9 +151,9 @@ for i, d in enumerate(dates):
 
 ist_now = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(hours=5, minutes=30)).strftime('%Y-%m-%d %H:%M:%S')
 html = f'''<div style="background:#0b1120;color:#e2e8f0;font-family:Segoe UI,Arial,sans-serif;padding:4px 6px;font-size:9.5px;border-radius:6px;overflow-x:auto;-webkit-overflow-scrolling:touch">
-<style>.na-meta{{color:#94a3b8;margin-bottom:3px;font-size:8.8px}}.ohlc-strip{{background:#0f172a;border:1px solid #334155;border-radius:4px;padding:2.5px 6px;margin-bottom:4px;font-size:8.8px;white-space:nowrap;display:flex;justify-content:space-between;align-items:center}}.na-box{{background:#111827;border:1px solid #1e293b;border-radius:4px;padding:4px 6px;margin-bottom:4px;line-height:1.22}}.pos{{color:#4ade80;font-weight:600}}.neg{{color:#f87171;font-weight:600}}.warn{{color:#fbbf24;font-weight:600}}.pos-cell{{color:#4ade80;background:rgba(74,222,128,0.10);font-weight:600}}.neg-cell{{color:#f87171;background:rgba(248,113,113,0.15);font-weight:600}}.tag{{color:#94a3b8;font-weight:400;font-size:8px}}table.grid{{width:100%;border-collapse:collapse;background:#111827;margin-bottom:4px;font-size:8.3px;color:#e2e8f0}}table.grid th,table.grid td{{padding:1.5px 2.5px;border-bottom:1px solid #1e293b;border-right:1px solid #1e293b;text-align:right;white-space:nowrap}}table.grid th{{background:#1e293b;color:#cbd5e1;text-align:center}}table.grid th:first-child,table.grid td:first-child{{text-align:left}}table.stk td{{text-align:center}}table.stk td:first-child{{text-align:left}}.wdiv{{border-left:1.5px solid #e2e8f0 !important}}.top-sep td{{border-bottom:1.5px solid #94a3b8 !important}}</style>
+<style>.na-meta{{color:#94a3b8;margin-bottom:3px;font-size:8.8px}}.na-box{{background:#111827;border:1px solid #1e293b;border-radius:4px;padding:4px 6px;margin-bottom:4px;line-height:1.22}}.pos{{color:#4ade80;font-weight:600}}.neg{{color:#f87171;font-weight:600}}.warn{{color:#fbbf24;font-weight:600}}.pos-cell{{color:#4ade80;background:rgba(74,222,128,0.10);font-weight:600}}.neg-cell{{color:#f87171;background:rgba(248,113,113,0.15);font-weight:600}}.tag{{color:#94a3b8;font-weight:400;font-size:8px}}table.grid{{width:100%;border-collapse:collapse;background:#111827;margin-bottom:4px;font-size:8.3px;color:#e2e8f0}}table.grid th,table.grid td{{padding:1.5px 3px;border-bottom:1px solid #1e293b;border-right:1px solid #1e293b;text-align:right;white-space:nowrap}}table.grid th{{background:#1e293b;color:#cbd5e1;text-align:center}}table.grid th:first-child,table.grid td:first-child{{text-align:left}}table.ohlc-sq{{width:auto;min-width:440px;border:1px solid #334155}}table.ohlc-sq th,table.ohlc-sq td{{padding:1.5px 7px;text-align:center}}table.ohlc-sq th:first-child,table.ohlc-sq td:first-child{{text-align:left;color:#38bdf8}}table.stk td{{text-align:center}}table.stk td:first-child{{text-align:left}}.wdiv{{border-left:1.5px solid #e2e8f0 !important}}.top-sep td{{border-bottom:1.5px solid #94a3b8 !important}}</style>
 <div class="na-meta">Updated: {ist_now} IST | 252D AnnVol: <b>{nifty_ann_vol*100:.2f}%</b> | S3: <b>{last_n['s3']:+.2f}%</b> | S5: <b>{last_n['s5']:+.2f}%</b> | S10: <b>{last_n['s10']:+.2f}%</b> | S15: <b>{last_n['s15']:+.2f}%</b> | S20: <b>{last_n['s20']:+.2f}%</b> | Regime: <span class="{bias_cls}">{bias_txt}</span></div>
-<div class="ohlc-strip">{ohlc_bar}</div>
+<table class="grid ohlc-sq"><tr><th>Today Live Index</th><th>Prev Close</th><th>Open</th><th>High</th><th>Low</th><th>Current</th><th>% Chg</th></tr>{ohlc_rows}</table>
 <div class="na-box">
   <div style="color:#38bdf8;font-weight:700">SYS-1: 3-DAY UNIDIRECTIONAL DEBIT SPREAD (65 QTY/LOT | Win Rate: 73.5%): {sig}</div>
   <div><b>100-Pt:</b> Long Buy {atm} CE + Sell {atm+100} CE | Short Buy {atm} PE + Sell {atm-100} PE &nbsp;|&nbsp; <b>200-Pt:</b> Long Buy {atm} CE + Sell {atm+200} CE | Short Buy {atm} PE + Sell {atm-200} PE</div>
