@@ -100,8 +100,7 @@ p3 = n_df['pct'].tail(3).tolist()
 s3_val = float(last_n['s3'])
 flip_ok = (p3[-1] * p3[-2]) < 0
 ic_comp = flip_ok and (abs(s3_val) < 1.0) and (abs(last_n['s5']) < 1.5)
-ic_div = flip_ok and ((s3_val * last_n['s5']) < 0)
-stk_list, stk_dates = [], []
+ic_div = flip_ok and ((s3_val * last_n['s5']) < 0)stk_list, stk_dates = [], []
 for sym, tk, uni in STOCKS:
     df = get_hist(tk, '2mo').copy()
     df['pct'] = df['Close'].pct_change() * 100
@@ -174,7 +173,6 @@ html = f'''<div style="background:#0b1120;color:#e2e8f0;font-family:Segoe UI,Ari
 <table class="grid stk"><tr><th>Metric / Date</th>{stk_th}</tr><tr><td><b>CMP | Qty</b></td>{row_cmp}</tr><tr><td><b>+0.55 / +0.75</b></td>{row_tgt}</tr><tr><td><b>Vol | VolX</b></td>{row_vol}</tr><tr><td><b>S2.5 / S5</b></td>{row_s25_5}</tr><tr class="top-sep"><td><b>S10 / S15</b></td>{row_s10_15}</tr>{date_rows_html}</table>
 </div>'''
 
-@st.cache_data(ttl=3600)
 def run_29yr_backtest():
     b = get_hist('^NSEI', 'max').copy()
     b['pct'] = b['Close'].pct_change() * 100
@@ -189,3 +187,4 @@ def run_29yr_backtest():
     for i in range(len(b) - 5):
         p = b['pct'].iloc[i]
         if p > 0: streak = streak + 1 if streak > 0 else 1
+
